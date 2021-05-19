@@ -165,7 +165,14 @@ static var_info _cm_vtab_pvwattsv7[] = {
         { SSC_OUTPUT,       SSC_ARRAY,       "tpoa",                           "Transmitted plane of array irradiance",       "W/m2",      "",                                             "Time Series",      "*",                       "",                          "" },
         { SSC_OUTPUT,       SSC_ARRAY,       "tcell",                          "Module temperature",                          "C",         "",                                             "Time Series",      "*",                       "",                          "" },
         { SSC_OUTPUT,       SSC_ARRAY,       "dcsnowderate",                   "DC power loss due to snow",            "%",         "",                                             "Time Series",      "*",                       "",                          "" },
-
+        
+        { SSC_OUTPUT,       SSC_ARRAY,       "poa_sky_diffuse_circumsolar"     "Circumsolar component of sky diffuse POAI",                "W/m2",      "",                                             "Time Series",      "*",                       "",                          "" },
+        { SSC_OUTPUT,       SSC_ARRAY,       "poa_sky_diffuse_horizon"         "Horizon component of sky diffuse POAI",                    "W/m2",      "",                                             "Time Series",      "*",                       "",                          "" },
+        { SSC_OUTPUT,       SSC_ARRAY,       "poa_sky_diffuse_isotropic"       "Isotropic component of sky diffuse POAI",                  "W/m2",      "",                                             "Time Series",      "*",                       "",                          "" },
+        { SSC_OUTPUT,       SSC_ARRAY,       "poa_sky_diffuse",                "Sky diffuse component of Plane of array irradiance",       "W/m2",      "",                                             "Time Series",      "*",                       "",                          "" },
+        { SSC_OUTPUT,       SSC_ARRAY,       "poa_ground_diffuse",             "Ground diffuse component of Plane of array irradiance",    "W/m2",      "",                                             "Time Series",      "*",                       "",                          "" },
+        { SSC_OUTPUT,       SSC_ARRAY,       "poa_beam",                       "Beam component of Plane of array irradiance",              "W/m2",      "",                                             "Time Series",      "*",                       "",                          "" },
+        
         { SSC_OUTPUT,       SSC_ARRAY,       "dc",                             "DC inverter input power",                              "W",         "",                                             "Time Series",      "*",                       "",                          "" },
         { SSC_OUTPUT,       SSC_ARRAY,       "ac",                             "AC inverter output power",                           "W",         "",                                             "Time Series",      "*",                       "",                          "" },
 
@@ -719,6 +726,14 @@ public:
         ssc_number_t* p_ac = allocate("ac", nrec);
         ssc_number_t* p_gen = allocate("gen", nlifetime);
 
+        // just for reporting output - helped in analyzing deltas in POAI results
+        ssc_number_t* p_isotropic = allocate("poa_sky_diffuse_isotropic", nrec);
+        ssc_number_t* p_circumsolar = allocate("poa_sky_diffuse_circumsolar", nrec);
+        ssc_number_t* p_horizon = allocate("poa_sky_diffuse_horizon", nrec);
+        ssc_number_t* p_beam = allocate("poa_beam", nrec);
+        ssc_number_t* p_sky_diffuse = allocate("poa_sky_diffuse", nrec);
+        ssc_number_t* p_gnd_diffuse = allocate("poa_ground_diffuse", nrec);
+
         pvwatts_celltemp tccalc(pv.inoct + 273.15, PVWATTS_HEIGHT, ts_hour); //in pvwattsv5 there is some code about previous tcell and poa that doesn't appear to get used, so not adding it here
 
         double annual_kwh = 0;
@@ -824,7 +839,17 @@ public:
 
                 irr.get_sun(&solazi, &solzen, &solalt, nullptr, nullptr, nullptr, &sunup, nullptr, nullptr, nullptr); //nullptr used when you don't need to retrieve the output
                 irr.get_angles(&aoi, &stilt, &sazi, &rot, &btd);
-                irr.get_poa(&ibeam, &iskydiff, &ignddiff, nullptr, nullptr, nullptr); //nullptr used when you don't need to retrieve the output
+
+                double isotropic, circumsolar, horizon;
+                irr.get_poa(&ibeam, &iskydiff, &ignddiff, &isotropic, &circumsolar, &horizon); //nullptr used when you don't need to retrieve the output
+
+                p_isotropic[idx] = (ssc_number_t)isotropic;     // W/m2
+                p_circumsolar[idx] = (ssc_number_t)circumsolar; // W/m2
+                p_horizon[idx] = (ssc_number_t)horizon;         // W/m2
+
+                p_beam[idx] = (ssc_number_t)ibeam;              // W/m2
+                p_sky_diffuse[idx] = (ssc_number_t)iskydiff;    // W/m2
+                p_gnd_diffuse[idx] = (ssc_number_t)ignddiff;    // W/m2
 
                 if (module.bifaciality > 0)
                 {
